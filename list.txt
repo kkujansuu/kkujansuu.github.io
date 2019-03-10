@@ -1,0 +1,5 @@
+total 1552
+-rw-rw-r-- 1 kari kari 1568440 Mar 10 17:46 karajakunnat.html
+-rw-rw-r-- 1 kari kari    1328 Mar 10 17:46 karajakunnat.js
+-rw-rw-r-- 1 kari kari       0 Mar 10 17:47 list.txt
+-rw-rw-r-- 1 kari kari      21 Mar 10 17:46 README.md
