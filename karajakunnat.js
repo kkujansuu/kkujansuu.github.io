@@ -1,9 +1,4 @@
     $(document).ready(function() {
-        $("a.arkisto").each( function( i, link ) {
-            var content = $(link).text();
-            $(link).data("orig-text",content);
-        });
-
         // from https://css-tricks.com/snippets/jquery/make-jquery-contains-case-insensitive/
         $.expr[":"].contains = $.expr.createPseudo(function(arg) {
             return function( elem ) {
@@ -22,14 +17,12 @@
                 
             $("tr.paikka").hide();
             $("td.paikka:contains('" + searchedText + "')").each( function( i, td ) {
-                console.log(td);
                 var n = $(td).attr("n");
-                console.log("n:",n);
                 $("tr[n="+n+"]").show();
             });
         });
 
-        $("#navi a").click( function(e) {
+        $("#zznavi a").click( function(e) {
             $("tr.paikka").show();
         });
 
