@@ -1,0 +1,51 @@
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<style>
+table {
+    border-collapse: collapse;
+}'
+table, th, td {
+    border:1px solid gray;
+}'
+</style>
+
+<div id="app">
+    <table border>
+        <tr>
+            <th>Leveys
+            <th>Korkeus
+            <th>Hinta
+        <tr style="background:lightblue">
+            <td><input v-model="leveys">
+            <td><input v-model="korkeus">
+            <td><input v-model="hinta">
+        <tr v-for="row in rows">
+            <td><input v-model="row.leveys">
+            <td><input v-model="row.korkeus">
+            <td>{{ laskehinta(row) }}
+        </tr>
+    </table>
+</div>
+
+<script>
+var app = new Vue({
+    el: '#app',
+    created: function() {
+        for (let i=0;i<5;i++)
+        for (let j=0;j<5;j++)
+            this.rows.push({leveys:20+i*10,korkeus:20+j*10})
+    },
+    data: {
+        leveys: 20,
+        korkeus: 30,
+        hinta: 90,
+        rows: [],
+    },
+    methods: {
+        laskehinta(row) {
+            return row.leveys*row.korkeus*this.hinta/(this.leveys*this.korkeus);
+        }
+    }
+        
+});
+
+</script>
