@@ -20,8 +20,8 @@ img.button {
 <div>
     <div id="q">
         <table>
-            <tr><td id="text">
             <tr><td id="scoretext">
+            <tr><td id="text">
         </table>
     </div>
     <canvas id="canvas" width="1800" height="1200">
@@ -31,6 +31,9 @@ img.button {
     <img id="redbutton"  class="button" src="redbutton.png">
 </div>
 <script>
+
+// Tampereen kartta ladattu Tampereen karttapalvelusta (virastokartta).
+// Data ladattu Nimisammosta csv-muodossa ja muutettu jsoniksi:
 var places = [{
 		"id": "http://ldf.fi/copla/P_10581554",
 		"prefLabel": "Taatala",
