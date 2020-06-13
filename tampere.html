@@ -13,7 +13,7 @@
     font-size: 20px;
 }
 img.button {
-    position: fixed;
+    position: absolute;
     display: none;
 }
 </style>
@@ -1033,8 +1033,8 @@ function onclick(e, ctx) {
     score += distance;
     tries++;
     if (distance > 50) { // not close enough
-        redbutton.style.left = e.pageX;
-        redbutton.style.top = e.pageY;
+        redbutton.style.left = e.pageX - 10;
+        redbutton.style.top = e.pageY - 10;
         redbutton.style.display = 'inline';
         setTimeout( function() {alert("Pieleen meni, aloitamme alusta!"); next(ctx); }, 500 );
         tries = 0;
