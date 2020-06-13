@@ -7,19 +7,10 @@
     height: 50px;
     border: 3px solid #73AD21;
 }
-@-webkit-keyframes fadeout {
-    0% {opacity:1;}
-    100% {opacity:0;}
-}
-@keyframes fadeout {
-    0% {opacity:1;}
-    100% {opacity:0;}
-}
-.fadeOut {
-  opacity:0;
-  -moz-animation   : fadeout 1s linear;
-  -webkit-animation: fadeout 1s linear;
-  animation        : fadeout 1s linear;
+#q td {
+    color: blue;
+    font-weight: bold;
+    font-size: 20px;
 }
 img.button {
     position: fixed;
@@ -30,7 +21,7 @@ img.button {
     <div id="q">
         <table>
             <tr><td id="text">
-            <tr><td id="scoretext" cclass="fadeOut">
+            <tr><td id="scoretext">
         </table>
     </div>
     <canvas id="canvas" width="1800" height="1200">
@@ -1031,36 +1022,22 @@ var redbutton = document.getElementById("redbutton");
 var kysytyt = [];
 
 function onclick(e, ctx) {
-    console.log(e);
     ctx.beginPath();
     var x = DX*(place.long-23.554);
     var y = DY*(61.553-place.lat);
     var dx = e.pageX / (place.long-23.554);
     var dy = e.pageY / (61.553-place.lat);
-    console.log("x="+x);
-    console.log("y="+y);
-    console.log("dx="+dx);
-    console.log("dy="+dy);
-    ctx.moveTo(x, y);
-    ctx.lineTo(e.pageX, e.pageY);
-    //ctx.stroke();
     var distx = x - e.pageX;
     var disty = y - e.pageY;
     var distance = Math.sqrt( distx*distx + disty*disty );
-    console.log("distance="+distance);
     score += distance;
     tries++;
-    var scoretext = document.getElementById("scoretext");
-//    scoretext.innerHTML = tries + "/" + maxtries; // + ": " + Math.floor(score  );
-    
     if (distance > 50) { // not close enough
         redbutton.style.left = e.pageX;
         redbutton.style.top = e.pageY;
         redbutton.style.display = 'inline';
         setTimeout( function() {alert("Pieleen meni, aloitamme alusta!"); next(ctx); }, 500 );
         tries = 0;
-        kysytyt = [];
-//        scoretext.innerHTML = tries + "/" + maxtries; // + ": " + Math.floor(score  );
     } else {
         x = e.pageX - 10;
         y = e.pageY - 10;
@@ -1071,11 +1048,7 @@ function onclick(e, ctx) {
     greenbutton.style.display = 'inline';
     if (tries == maxtries) {
         setTimeout( function() {alert("Loistavaa tietoa, kaikki oikein! Pelaa uudestaan!"); next(ctx); }, 500 );
-        //var ok = confirm("Loistavaa tietoa!");
-        //console.log(ok);
         tries = 0;
-        kysytyt = [];
-        //next(ctx);
         return;
     }
     if (tries > 0) next(ctx);
@@ -1088,17 +1061,15 @@ function next(ctx) {
     var scoretext = document.getElementById("scoretext");
     scoretext.innerHTML = tries + "/" + maxtries; // + ": " + Math.floor(score  );
     var map = document.getElementById("map");
-    console.log(map);
-    //map.addEventListener("click", (x) => console.log(x));
     var text = document.getElementById("text");
     var numplaces = places.length;
     while (true) {
         var i = Math.floor(Math.random() * numplaces);
-        console.log(i);
         place = places[i];
         if (kysytyt.indexOf(place.prefLabel) < 0) break;
     }
     kysytyt.push(place.prefLabel);
+    if (kysytyt.length > 20) kysytyt.shift();
     text.innerHTML = "Missä on " + place.prefLabel + "?";
 }
 
