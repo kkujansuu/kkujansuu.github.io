@@ -1,0 +1,63 @@
+<html>
+<meta charset="utf-8">
+<base target="_blank">
+
+<script src="vue.js"></script>
+<script src="kuolleet.js"></script>
+
+
+<div id="myApp">
+    Sukunimi: <input v-model="name" size=50>
+    <button @click="search()">Hae</button>
+    <p>
+    <table>
+        <tr v-for="doc in data" v-show="match(name, doc.name1, doc.name2)">
+            <td>
+                <!-- a :href="doc.url + '?view=list&history=1&ref=results&_displayStart=0&_sort=3,desc'">{{doc.title}}</a -->
+                <a :href="doc.url + '?ref=browse'">{{doc.title}}</a>
+
+    </table>
+</div>
+
+
+<script>
+function startswith(name, prefix) {
+    return name.substr(0,prefix.length) == prefix;
+}
+    
+function match(name, name1, name2) {
+     if (name == '') return true;
+     if (startswith(name1, name)) return true;
+     if (startswith(name2, name)) return true;
+     if (name1 <= name.toLowerCase() && name.toLowerCase() <= name2) return true;
+     return false;
+}
+
+var app = new Vue({
+    el: '#myApp',
+    created: function() {
+        this.init();    
+    },
+    data: {
+        name: "",
+        data: [],
+    }, // data
+    methods: {
+        init: function() {
+            this.data = data;
+        },
+        setplace: function(place) {
+        },
+
+        search: function(q) {
+            console.log("search", app.name);
+        }
+    } // methods
+
+});
+
+</script>
+
+
+</html>
+
