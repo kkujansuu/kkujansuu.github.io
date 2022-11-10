@@ -1,0 +1,764 @@
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<zlink rel='stylesheet' href='familytree.css'>
+
+<style>
+div.p {
+    position: absolute;
+    border: solid 2px black;
+    text-align: center;
+    xwidth: 160px;
+    xheight: 30px;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+div.hline {
+    position: absolute;
+    border-top: solid 2px;
+    border-left: solid 2px;
+}
+
+div.vline {
+    position: absolute;
+    border-top: solid 2px;
+    border-left: solid 2px;
+}
+
+div.commands {
+    float: right;
+    xborder: solid 2px black;
+    text-align: center;
+    xwidth: 160px;
+    border-radius: 5px;
+    font-size: 20px;
+}
+
+div.cmd {
+    border: solid 1px black;
+    text-align: center;
+    xwidth: 150px;
+    height: 30px;
+    border-radius: 5px;
+    font-size: 20px;
+    background: gray;
+    color: white;
+}
+
+#import_dialog {
+    display: none;
+    position: absolute;
+    left: 100px;
+    top: 100px;
+}
+
+div.xcontent {
+    width: 1000px;
+    height: 1000px;;
+}
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"></script>
+
+<body  ondrop="drop_handler(event)" ondragover="return false" onwheel="resize(event)">
+
+<div id="content" draggable="true" xonwheel="resize(event)">
+</div>
+
+<div class="commands">
+    <div class="xcmd"><input id="name"></div>
+    <div class="xcmd"><input id="vuodet"></div>
+    <div class="cmd" id="set_name">Aseta nimi</div>
+    <div class="cmd" id="select_all">Valitse kaikki</div>
+    <!--
+    <div class="cmd" id="move_up">Siirrä ylös</div>
+    <div class="cmd" id="move_down">Siirrä alas</div>
+    -->
+    <div class="cmd" id="move_left">Siirrä vasemmalle</div>
+    <div class="cmd" id="move_right">Siirrä oikealle</div>
+    <div class="cmd" id="rotate">Kierrä</div>
+    <hr>
+    <div class="cmd" id="add_spouse">Lisää puoliso</div>
+    <div class="cmd" id="add_child">Lisää lapsi</div>
+    <div class="cmd" id="add_parents">Lisää vanhemmat</div>
+    <div class="cmd" id="add_parent">Lisää yksi vanhempi</div>
+    <hr>
+    <div class="cmd" id="delete">Poista henkilö</div>
+    <div class="cmd" id="export">Vienti</div>
+    <div class="cmd" id="import">Tuonti</div>
+    <div class="cmd" id="export_svg">SVG-vienti</div>
+    <hr>
+    <!-- form>
+    <input type="file" id="file">    
+    <div class="cmd" id="import">Tuonti</div>
+    </form>
+    <hr -->
+    <div class="cmd" id="clear">Tyhjennä</div>
+    <div id="layout"></div>
+</div>
+
+<div id="import_dialog">
+    Liitä JSON-koodi tähän:
+    <br>
+    <textarea id="text" rows="10" cols="100"></textarea>
+    <br>
+    <button type="button" id="do_import">Tuo</button>
+    <button type="button" id="cancel_import">Peruuta</button>
+</div>
+
+</body>
+
+<script>
+//var rev = true;
+
+var layout = 'TB';
+//var layout = 'BT';
+//var layout = 'LR';
+//var layout = 'RL';
+
+var persons = {};
+var selected = new Set();
+var families = {};
+var boxes = {};
+
+var config =  {
+    X0: 250,
+    Y0: 250,
+    W: 140,
+    H: 30,
+    W2: 10,
+    H2: 15,
+};
+
+var X0 = 250;
+var Y0 = 250;
+var W = 140;
+var H = 30;
+var W2 = 10;
+var H2 = 15;
+var dx = 1;
+var dy = -1;
+
+var B = 2;
+
+var person_id = 0;
+var family_id = 0;
+
+$("#content").on("dragstart", function(e) {
+    console.log("dragstart",e);
+    orig_x = e.clientX;
+    orig_y = e.clientY;
+});
+
+function dragover_handler(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+}
+function drop_handler(e) {
+    e.preventDefault();
+    console.log("drop",e);
+    if (layout == 'TB' || layout == 'BT') {
+        X0 += e.clientX - orig_x;
+        Y0 += e.clientY - orig_y;
+    } else {
+        Y0 += e.clientX - orig_x;
+        X0 += e.clientY - orig_y;
+    }
+    refresh();
+}
+
+function resize(e) {
+    console.log('scroll', e.deltaY, e.wheelDeltaY);
+    e.preventDefault();
+    if (e.deltaY > 0) {
+        H /= 1.2;
+        W /= 1.2;
+        W2 /= 1.2;
+        H2 /= 1.2;
+    } else {
+        H *= 1.2;
+        W *= 1.2;
+        W2 *= 1.2;
+        H2 *= 1.2;
+    }
+    refresh();
+}
+
+function clear() {
+    persons = {};
+    families = {};
+    person_id = 0;
+    family_id = 0;
+    selected.clear();
+    boxes = {};
+    svg = '<svg width="1200" height="1800">\n';
+    svg1 = `<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" 
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+  <svg width="1200" height="1800">\n`;
+}
+
+function init() {
+    clear();
+    const x = localStorage.getItem("data")
+    if (x) {
+        const data = JSON.parse(x);
+        persons = data.persons;
+        families = data.families;
+        X0 = data.X0;
+        Y0 = data.Y0;
+        for (const p_id in persons) {
+            //console.log(">> init - p_id:", p_id, person_id, p_id > person_id);
+            if (parseInt(p_id) > person_id)
+                person_id = parseInt(p_id);
+        }
+        for (const f_id in families) {
+            if (parseInt(f_id) > family_id)
+                family_id = parseInt(f_id);
+        }
+        //console.log("init - person id:", person_id);
+        //console.log("init - family id:", family_id);
+        //console.log("- persons:", persons);
+    }
+}
+
+function add_person(name,x,y) {
+    console.log("add_person",name);
+    person_id++;
+    if (name[name.length-1] == "#") name += person_id;
+    if (person_id in persons) {
+        console.log("person id already exists");
+        console.log("- person id:", person_id);
+        console.log("- persons:", persons);
+        alert("error");
+    }
+    persons[person_id] = {id:person_id, name:name, x:x, y:y, family_ids:[], vuodet:""};
+    //selected = new Set([person_id]);
+    return persons[person_id];
+}
+
+function add_family(p1,p2,children) {
+    family_id++;
+    if (p2 == null)
+        families[family_id] = {p1:p1.id, p2:null, children:children};
+    else
+        families[family_id] = {p1:p1.id, p2:p2.id, children:children};
+    return family_id;
+}
+
+function left(p, offset) {
+//    if (1 && rev)
+//        return X0+p.y*(W/2+W2);
+    if (!offset) offset = 0;
+    return X0+dx*(p.x*(W/2+W2) + offset);
+}
+
+function ytop(p, offset) {
+//    if (1 && rev)
+//        return Y0+p.x*(H+2*H2);
+    if (!offset) offset = 0;
+    return Y0+dy*(p.y*(H+2*H2) + offset)
+}
+
+
+function highlight_selected() {
+    for (const p of get_selected()) {
+        const box = boxes[p.id];
+        box.css("background","green").css("color","white");
+    }
+}
+
+function get_selected() {
+    var res = [];
+    for (const id of selected.values()) {
+        p = persons[id];
+        if (p)
+            res.push(p)
+    }
+    //console.log("get_selected",res);
+    return res;
+}
+
+// from https://stackoverflow.com/questions/4184944/javascript-download-data-to-file-from-content-within-the-page
+function download(content, filename, contentType)
+{
+    if(!contentType) contentType = 'application/octet-stream';
+        var a = document.createElement('a');
+        var blob = new Blob([content], {'type':contentType});
+        a.href = window.URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+}
+
+function find_free_spot(child) {
+    const ids = new Set();
+    for (const p_id in persons) {
+        const p = persons[p_id];
+        if (p.y == child.y && p != child)
+            ids.add(p.x);
+    }
+    console.log("child.x",child.x);
+    console.log("ids",ids);
+    var i = child.x+1;
+    while (true) {
+        if (ids.has(i) || ids.has(i-1) || ids.has(i-2)) {
+            i--;
+            continue;
+        }
+        break
+    }
+    const min_spot = i-1;
+    
+    var i = child.x-1;
+    while (true) {
+        if (ids.has(i) || ids.has(i+1) || ids.has(i+2)) {
+            i++;
+            continue;
+        }
+        break
+    }
+    const max_spot = i+1;
+    console.log("minmax",min_spot,max_spot);
+    if ((child.x-min_spot) < (max_spot-child.x))
+        child.x = min_spot;
+    else
+        child.x = max_spot;
+}
+
+function drawbox(p, left, top, W, H) {
+    //console.log("drawbox", left, top, W, H);
+    var vuodet = ""
+    if (p.vuodet) vuodet = p.vuodet;
+    const box = $("<div class=p>" + p.name + "<br>" + vuodet + "</div>");
+    box.data("id",p.id);
+    if (layout == 'TB') {
+        box.css("left", left);
+        box.css("top", top);
+        box.css("width", W);
+        box.css("height", H);
+    } 
+    if (layout == 'BT') {
+        box.css("left", left);
+        box.css("top", top-H);
+        box.css("width", W);
+        box.css("height", H);
+    } 
+    if (layout == 'LR') {
+        //console.log("->", top, left, H, W);
+        box.css("left", top);
+        box.css("top", left);
+        box.css("width", H);
+        box.css("height", W);
+    } 
+    if (layout == 'RL') {
+        //console.log("->", top, left, H, W);
+        box.css("left", top-H);
+        box.css("top", left);
+        box.css("width", H);
+        box.css("height", W);
+    } 
+    $("#content").append(box);
+    boxes[p.id] = box;
+    
+   
+    svg += `\n<rect x="${top}" y="${left}" width="${H}" height="${W}"`
+    svg += ' style="fill:blue;stroke:pink;stroke-width:5;fill-opacity:0.1;stroke-opacity:0.9" />';
+    svg += `<text x="${top+20}" y="${left+10}">${p.name}</text>`;
+    svg += `<text x="${top+20}" y="${left+30}">${vuodet}</text>`;
+}
+
+function vline(left, top, height) {
+    //console.log("vline",left, top, height);
+    const box = $("<div class=hline></div>");
+    if (layout == 'TB') {
+        box.css("left", left);
+        box.css("top", top);
+        box.css("height", height);
+    }
+    if (layout == 'BT') {
+        box.css("left", left);
+        box.css("top", top-height);
+        box.css("height", height);
+    }
+    if (layout == 'LR') {
+        //console.log("->",top, left, height) 
+        box.css("left", top);
+        box.css("top", left);
+        box.css("width", height);
+    }
+    if (layout == 'RL') {
+        //console.log("->",top, left, height) 
+        box.css("left", top-height);
+        box.css("top", left);
+        box.css("width", height);
+    }
+    $("#content").append(box);
+    svg += `\n<line x1="${top}" y1="${left}" x2="${top+height}" y2="${left}" style="stroke:rgb(255,0,0);stroke-width:2" />`;
+}    
+
+function hline(left, top, width) {
+    //console.log("hline",left, top, width)
+    const box = $("<div class=vline></div>");
+    if (layout == 'TB') {
+        box.css("left", left);
+        box.css("top", top);
+        box.css("width", width);
+    }
+    if (layout == 'BT') {
+        box.css("left", left);
+        box.css("top", top);
+        box.css("width", width);
+    }
+    if (layout == 'LR') {
+        //console.log("->",top, left, width) 
+        box.css("left", top);
+        box.css("top", left);
+        box.css("height", width);
+    }
+    if (layout == 'RL') {
+        //console.log("->",top, left, width) 
+        box.css("left", top);
+        box.css("top", left);
+        box.css("height", width);
+    }
+    $("#content").append(box);
+    svg += `\n<line x1="${top}" y1="${left}" x2="${top}" y2="${left+width}" style="stroke:rgb(255,0,0);stroke-width:2" />`;
+}    
+
+        
+function refresh() {
+    if (Object.keys(persons).length == 0) {
+        person_id = 0;
+        family_id = 0;
+        boxes = {};
+        selected.clear();
+      
+        const p = add_person("Henkilö#", 0, 0);
+        selected.add(p.id);
+    }
+    //console.log("persons2",persons);
+    $("#layout").text(layout);
+
+    if (0) {
+        console.log("layout="+layout);
+        console.log("X0="+X0);
+        console.log("Y0="+Y0);
+        console.log("H="+H);
+        console.log("W="+W);
+        console.log("H2="+H2);
+        console.log("W2="+W2);
+        console.log("dx="+dx);
+        console.log("dy="+dy);
+    }
+        
+    svg = '<svg width="1200" height="1800">\n';
+
+    $("#content").html("");
+    for (const p_id in persons) {
+        const p = persons[p_id];
+        drawbox(p, left(p), ytop(p), W, H);
+    }
+    for (var f_id in families) {
+        //console.log("f_id=",f_id);
+        const f = families[f_id];
+        var p1 = persons[f.p1];
+        var p2 = persons[f.p2];
+        const child_ids = f.children;
+        if (f.p2 == null) {
+            var min_x = left(p1, W/2);
+            var max_x = min_x;
+            var aleft = min_x;
+            var atop = ytop(p1, H + B);
+            var aheight = H2 - B;
+        }
+        else {
+            if (p1.x > p2.x) {
+                p1 = persons[f.p2];
+                p2 = persons[f.p1];
+            }
+            hline(left(p1, W+B), ytop(p1,H/2), left(p2)-left(p1, W+B));
+            var min_x = left(p1, W + W2);
+            var max_x = min_x;
+            var aleft = min_x;
+            var atop = ytop(p1, H/2);
+            var aheight = H/2 + H2;
+        }
+        
+        for (var c_id of child_ids) {
+            var c = persons[c_id];
+            var x = left(c, W/2);
+            if (x < min_x) min_x = x;
+            if (x > max_x) max_x = x;
+        }
+        if (child_ids.length > 0) {
+            vline(aleft, atop, aheight);
+            hline(min_x, ytop(p1, H + H2), max_x - min_x);
+        }
+        var i = 0;
+        for (var c_id of child_ids) {
+            var c = persons[c_id];
+            vline(left(c, W/2), ytop(p1, H+H2), H2 );
+        }
+
+    }
+    $("div.p").click( function(e) {
+        console.log(e);
+        $("div.p").css("background","lightblue").css("color","black");
+        //$(e.target).css("background","green").css("color","white");
+        const selected_id = $(e.target).data("id");
+        const selected_person = persons[selected_id];
+        if (e.ctrlKey) {
+            if (selected.has(selected_id))
+                selected.delete(selected_id);
+            else
+                selected.add(selected_id);
+        } else {
+            $("#name").val(selected_person.name).select().focus();
+            $("#vuodet").val(selected_person.vuodet);
+            selected.clear();
+            selected.add(selected_id);
+        }
+        highlight_selected();
+    });
+    $("div.p").css("background","lightblue").css("color","black");
+    //if (selected) boxes[selected.id].css("background","green").css("color","white");
+    highlight_selected();
+    const data = {
+        persons: persons,
+        families, families,
+        X0: X0,
+        Y0, Y0
+    }
+        
+    localStorage.setItem("data", JSON.stringify(data));
+}
+
+function init_layout() {
+    if (layout == 'TB') {
+        dx = 1;
+        dy = 1;
+        W = config.W;
+        H = config.H;
+        W2 = config.W2;
+        H2 = config.H2;
+    }
+    if (layout == 'BT') {
+        dx = 1;
+        dy = -1;
+        X0 = 300;
+        Y0 = 500;
+        W = config.W;
+        H = config.H;
+        W2 = config.W2;
+        H2 = config.H2;
+    }
+    if (layout == 'LR') {
+        dx = 1;
+        dy = 1;
+        W = config.H;
+        H = config.W;
+        W2 = config.W2;
+        H2 = config.H2;
+    }
+    if (layout == 'RL') {
+        dx = 1;
+        dy = -1;
+        X0 = 300;
+        Y0 = 500;
+        W = config.H;
+        H = config.W;
+        W2 = config.W2;
+        H2 = config.H2;
+    }
+    if (layout == 'TB' || layout == 'BT') {
+        $("#move_left").text("Siirrä vasemmalle");
+        $("#move_right").text("Siirrä oikealle");
+    }
+    if (layout == 'LR' || layout == 'RL') {
+        $("#move_left").text("Siirrä ylös");
+        $("#move_right").text("Siirrä alas");
+    }
+}
+
+$( function() {
+    init();
+    init_layout();
+    refresh();
+    $("#set_name").click( function(e) {
+        var name = $("#name").val();
+        var vuodet = $("#vuodet").val();
+        for (const p of get_selected()) {
+            p.name = name;
+            p.vuodet = vuodet;
+        }
+        refresh();
+    });
+    $("#name").keyup( function(e) {
+        if (e.key != "Enter") return
+        var name = $("#name").val();
+        var vuodet = $("#vuodet").val();
+        for (const p of get_selected()) {
+            p.name = name;
+            p.vuodet = vuodet;
+            break;
+        }
+        refresh();
+    });
+    $("#vuodet").keyup( function(e) {
+        if (e.key != "Enter") return
+        var name = $("#name").val();
+        var vuodet = $("#vuodet").val();
+        for (const p of get_selected()) {
+            p.name = name;
+            p.vuodet = vuodet;
+            break;
+        }
+        refresh();
+    });
+    $("#move_up").click( function(e) {
+        Y0 -= 50;
+        refresh();
+    });
+    $("#move_down").click( function(e) {
+        Y0 += 50;
+        refresh();
+    });
+    $("#move_left").click( function(e) {
+        for (const p of get_selected()) {
+            p.x -= 1;
+        }
+        refresh();
+    });
+    $("#move_right").click( function(e) {
+        for (const p of get_selected()) {
+            p.x += 1;
+        }
+        refresh();
+    });
+    $("#add_spouse").click( function(e) {
+        for (const p of get_selected()) {
+            var spouse = add_person("Puoliso#", p.x, p.y);
+            f_id = add_family(p,spouse,[]); 
+            p.family_ids.push(f_id);
+            spouse.family_ids.push(f_id);
+            find_free_spot(spouse);
+        }
+        refresh();
+    });
+    $("#add_child").click( function(e) {
+        for (const p of get_selected()) {
+            var child = add_person("Lapsi#", p.x+1, p.y+1);
+            if (p.family_ids.length > 0) {
+                var f = families[p.family_ids[0]]
+                f.children.push(child.id);
+                child.x = persons[f.p1].x + 1;
+                find_free_spot(child);
+            }
+            else {
+                child.x = p.x;
+                f_id = add_family(p,null,[child.id]); 
+                //p.family_ids.push(f_id);
+                find_free_spot(child);
+            }
+        }
+        refresh();
+    });
+    $("#add_parents").click( function(e) {
+        for (const p of get_selected()) {
+            var p1 = add_person("Isä#", p.x-1, p.y-1);
+            var p2 = add_person("Äiti#", p.x+1, p.y-1);
+            f_id = add_family(p1,p2,[p.id]); 
+            p1.family_ids.push(f_id);
+            p2.family_ids.push(f_id);
+            find_free_spot(p1);
+            find_free_spot(p2);
+        }
+        refresh();
+    });
+    $("#add_parent").click( function(e) {
+        for (const p of get_selected()) {
+            var p1 = add_person("Vanhempi#", p.x, p.y-1);
+            f_id = add_family(p1,null,[p.id]); 
+            p1.family_ids.push(f_id);
+            find_free_spot(p1);
+        }
+        refresh();
+    });
+    $("#delete").click( function(e) {
+        for (const p of get_selected()) {
+            var id = p.id;
+            for (f_id in families) {
+                var f = families[f_id];
+                if (f.p1 == id) {
+                    f.p1 = f.p2;
+                    f.p2 = null;
+                }
+                if (f.p2 == id) {
+                    f.p2 = null;
+                }
+                if (f.p1 == null) {
+                    delete families[f_id];
+                    // remove family from person.family_ids
+                    continue;
+                }
+                var newchildren = [];
+                for (c_id of f.children) {
+                    if (c_id != id)
+                        newchildren.push(c_id);
+                }
+                f.children = newchildren;
+            }
+            delete persons[id];
+            delete boxes[id];
+        }
+        selected.clear();
+        refresh();
+    });
+    $("#clear").click( function(e) {
+        clear();
+        refresh();
+    });
+    $("#rotate").click( function(e) {
+        var layouts = ['TB','LR','BT','RL'];
+        var i = layouts.indexOf(layout);
+        if (i < layouts.length-1)
+            i++;
+        else
+            i = 0;
+        layout = layouts[i];
+        init_layout();
+        refresh();
+    });
+    $("#select_all").click( function(e) {
+        selected = new Set(Object.keys(persons));
+        refresh();
+    });
+    $("#export").click( function(e) {
+        var data = {persons:persons, families:families};
+        const indent = 2;
+        download(JSON.stringify(data, null, indent), "tree.json", "text/json");
+    });
+    $("#import").click( function(e) {
+        $("#import_dialog").show();
+    });
+    $("#export_svg").click( function(e) {
+        svg += "\n</svg>";
+        download(svg, "tree.html", "text/html");
+    });
+    $("#do_import").click( function(e) {
+        var text = $("#text").val();
+        console.log(text);
+        var data = JSON.parse(text);
+        persons = data.persons;
+        families = data.families;
+        if (data.X0) X0 = data.X0;
+        if (data.Y0) Y0 = data.Y0;;
+        $("#import_dialog").hide();
+        refresh();
+    });
+    $("#cancel_import").click( function(e) {
+        $("#import_dialog").hide();
+    });
+});
+</script>
